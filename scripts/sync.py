@@ -138,10 +138,12 @@ def artifacts():
     p.map(artifacts_helper, packages)
     strings = {}
     for pkg in packages:
+        print(f'Processing package: {pkg["folder_name"]}')  # Print message for each package       
         translations_dir = os.path.join(
             artifacts_dir, pkg['folder_name'], 'translations')
         locales = os.listdir(translations_dir)
         for locale in locales:
+            print(f'Processing locale: {locale} for package: {pkg["folder_name"]}')  # Print message for each locale
             strings_dir = os.path.join(
                 translations_dir, locale, 'strings.json')
             with open(strings_dir, 'r') as f:
@@ -157,6 +159,7 @@ def artifacts():
             os.makedirs(strings_dir)
         with open(os.path.join(strings_dir, 'strings.json'), 'w', encoding='utf8') as f:
             json.dump(value, f, ensure_ascii=False, sort_keys=True)
+        print(f'Successfully processed strings for locale: {locale}')  # Print message after processing each locale
 
     with open(locales_json_dir, 'w') as f:
         l = ['en-US'] + list(strings.keys())
@@ -253,13 +256,21 @@ def get_projects():
     resp = requests.get(xtm_uri + projects_uri, headers=headers)
     total_count = int(resp.headers['xtm-total-items-count'])
     projects = json.loads(resp.content.decode())
-    page = 2
+    previous_length = len(projects)
+    page = 1
     while len(projects) < total_count:
-        resp = requests.get(xtm_uri + projects_uri,
-                            headers=headers, params={'page': page})
-        projects = projects + json.loads(resp.content.decode())
-        page = page + 1
-    print('Succesfully fetched {0} projects'.format(len(projects)))
+        print(f'Fetching page {page}...')
+        resp = requests.get(xtm_uri + projects_uri, headers=headers, params={'page': page})
+        new_projects = json.loads(resp.content.decode())
+        if len(new_projects) == 0: # or len(projects) == previous_length:   # New exit condition
+            print('No more projects to fetch.')
+            break
+        projects += new_projects
+        previous_length = len(projects)
+        page += 1
+        print(f'Fetched {len(projects)}/{total_count} projects...')
+
+    print(f'Successfully fetched {len(projects)} projects.')
     return projects
 
 
@@ -405,6 +416,7 @@ def build_stats():
         'versions': {}
     }
     for pkg in packages:
+        print(f'Fetching version info for {pkg["folder_name"]}...')  # Print message before fetching
         resp = requests.get(pkg['url'])
         resp_json = json.loads(resp.content.decode())
         if 'is_python' in pkg:
@@ -412,6 +424,7 @@ def build_stats():
                             ] = resp_json['packages'][0]['version']
         if 'is_javascript' in pkg:
             obj['versions'][pkg['folder_name']] = resp_json['latest']['version']
+        print(f'Fetched version info for {pkg["folder_name"]}')  # Print message after fetching
     with open(build_json_dir, 'w') as f:
         json.dump(obj, f, sort_keys=True)
     print('Successfuly saved build.json' + build_json_dir)
@@ -426,11 +439,12 @@ def main():
     parser.add_argument('-r', '--repo_dir',
                         help='Repository directory', required=True)
     parser.add_argument('-t', '--token', help='XTM token', required=True)
-    args = vars(parser.parse_args())
+    #args = vars(parser.parse_args())
     global work_dir, xtm_token, repo_dir
-    work_dir = args['work_dir']
-    xtm_token = args['token']
-    repo_dir = args['repo_dir']
+    work_dir = "./"
+    xtm_token = "XTM-Basic 7wctG03jAekRWzjRzWt8Pa0tuOW3yqBECaRgfpKVWAa9nKqZo12+VhTM10YnWqVwxvCeDy8EAkw88GaNJ3GFyA=="
+    print(xtm_token)
+    repo_dir = "./"
     init()
 
     if not os.path.exists(artifacts_dir):
