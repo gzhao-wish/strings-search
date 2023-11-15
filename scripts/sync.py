@@ -331,47 +331,50 @@ def source_files(projects):
 
 
 def sources_json_job(source_path, dir):
+    strings = {}
     try:
-        strings = {}
         if not zipfile.is_zipfile(source_path):
-            print(source_path + ' is not a valid zip file. Skipping...')
+            print(f"{source_path} is not a valid zip file. Skipping...")
             return strings
         zf = zipfile.ZipFile(source_path)
         files = zf.namelist()
         for file in files:
             if file.endswith('.po'):
-                data = zf.read(file)
-                po = polib.pofile(data.decode())
-                for entry in po:
-                    if entry.msgid == 'Payment':
-                        print(dir)
-                    if entry.msgid not in strings:
-                        strings[entry.msgid] = [{
-                            'project': dir,
-                            'context': entry.msgctxt,
-                            'plurals': entry.msgid_plural
-                        }]
-                    else:
-                        strings[entry.msgid].append({
-                            'project': dir,
-                            'context': entry.msgctxt,
-                            'plurals': entry.msgid_plural
-                        })
-                    if entry.msgid_plural:
-                        if entry.msgid_plural not in strings:
-                            strings[entry.msgid_plural] = [{
+                try:
+                    data = zf.read(file)
+                    po = polib.pofile(data.decode())
+                    for entry in po:
+                        if entry.msgid == 'Payment':
+                            print(dir)
+                        if entry.msgid not in strings:
+                            strings[entry.msgid] = [{
                                 'project': dir,
-                                'context': entry.msgctxt
+                                'context': entry.msgctxt,
+                                'plurals': entry.msgid_plural
                             }]
                         else:
-                            strings[entry.msgid_plural].append({
+                            strings[entry.msgid].append({
                                 'project': dir,
-                                'context': entry.msgctxt
+                                'context': entry.msgctxt,
+                                'plurals': entry.msgid_plural
                             })
-        return strings
+                        if entry.msgid_plural:
+                            if entry.msgid_plural not in strings:
+                                strings[entry.msgid_plural] = [{
+                                    'project': dir,
+                                    'context': entry.msgctxt
+                                }]
+                            else:
+                                strings[entry.msgid_plural].append({
+                                    'project': dir,
+                                    'context': entry.msgctxt
+                                })
+                except Exception as e:
+                    print(f"Error processing file {file} in {source_path}: {e}")
     except Exception as e:
-        print(e)
-        raise e
+        print(f"Error processing zip file {source_path}: {e}")
+    return strings
+
 
 
 def sources_json(projects):
