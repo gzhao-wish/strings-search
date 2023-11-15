@@ -138,34 +138,42 @@ def artifacts():
     p.map(artifacts_helper, packages)
     strings = {}
     for pkg in packages:
-        print(f'Processing package: {pkg["folder_name"]}')  # Print message for each package       
+        print(f'Processing package: {pkg["folder_name"]}')
         translations_dir = os.path.join(
             artifacts_dir, pkg['folder_name'], 'translations')
         locales = os.listdir(translations_dir)
         for locale in locales:
-            print(f'Processing locale: {locale} for package: {pkg["folder_name"]}')  # Print message for each locale
+            print(f'Processing locale: {locale} for package: {pkg["folder_name"]}')
             strings_dir = os.path.join(
                 translations_dir, locale, 'strings.json')
-            with open(strings_dir, 'r') as f:
-                data = json.load(f)
-                if locale in strings:
-                    merge(strings[locale], data)
-                else:
-                    strings[locale] = data
+            try:
+                with open(strings_dir, 'r') as f:
+                    data = json.load(f)
+                    if locale in strings:
+                        merge(strings[locale], data)
+                    else:
+                        strings[locale] = data
+            except json.JSONDecodeError as e:
+                print(f"JSON format error in file {strings_dir}: {e}")
+                continue  # Skip this file and continue with the next
 
+    # Saving combined translations
     for locale, value in strings.items():
         strings_dir = os.path.join(translations_output_dir, locale)
         if not os.path.exists(strings_dir):
             os.makedirs(strings_dir)
         with open(os.path.join(strings_dir, 'strings.json'), 'w', encoding='utf8') as f:
             json.dump(value, f, ensure_ascii=False, sort_keys=True)
-        print(f'Successfully processed strings for locale: {locale}')  # Print message after processing each locale
+        print(f'Successfully processed strings for locale: {locale}')
 
+    # Saving locales.json
     with open(locales_json_dir, 'w') as f:
         l = ['en-US'] + list(strings.keys())
         l.sort()
         json.dump(l, f, sort_keys=True)
+
     print('Successfully built all translations strings.json')
+
 
 
 def parse_javacript_artifact_content(untar_dir, pkg_folder_name):
