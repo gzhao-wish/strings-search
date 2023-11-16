@@ -75,13 +75,20 @@ def init():
 def download(url):
     local_filename = url.split('/')[-1]
     local_file_dir = os.path.join(artifacts_dir, local_filename)
-    print(f'Downloading {url} to {local_file_dir}')
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(local_file_dir, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-    return local_file_dir
+    print(f'Trying to download {url} to {local_file_dir}')
+    try:
+        with requests.get(url, stream=True, timeout=30) as r:  # Increased timeout
+            r.raise_for_status()
+            with open(local_file_dir, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+        print('Download successful')
+        return local_file_dir
+    except requests.exceptions.ConnectionError as e:
+        print(f'Failed to download {url}: {e}')
+    except requests.exceptions.Timeout as e:
+        print(f'Request to {url} timed out: {e}')
+
 
 
 def artifacts_helper(pkg_url_obj):
@@ -405,19 +412,33 @@ def sources_json(projects):
 
 
 def copy():
+    # Ensure all destination directories exist
     data_dir = os.path.join(repo_dir, 'src/data')
     translations_dir = os.path.join(repo_dir, 'public/translations')
+
+    # Create directories if they don't exist
+    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(translations_dir, exist_ok=True)
+
+    # Perform copy operations
     shutil.copy(projects_json_dir, data_dir)
     print('Copied artifact: ' + projects_json_dir, data_dir)
+
     shutil.copy(sources_json_dir, data_dir)
     print('Copied artifact: ' + sources_json_dir, data_dir)
+
     shutil.copy(locales_json_dir, data_dir)
     print('Copied artifact: ' + locales_json_dir, data_dir)
+
     shutil.copy(build_json_dir, data_dir)
     print('Copied artifact: ' + build_json_dir, data_dir)
-    shutil.rmtree(translations_dir)
+
+    # Remove old translations directory and copy new translations
+    if os.path.exists(translations_dir):
+        shutil.rmtree(translations_dir)
     shutil.copytree(translations_output_dir, translations_dir)
     print('Copied artifact: ' + translations_output_dir, translations_dir)
+
 
 
 def build_stats():
