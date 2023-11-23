@@ -500,4 +500,5 @@ def main():
     print('Done')
     print('Took: ' + str(time.time() - start) + ' seconds')
 
-main()
+if __name__ == "__main__":
+    main()
